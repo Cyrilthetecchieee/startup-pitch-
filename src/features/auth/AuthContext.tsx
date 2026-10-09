@@ -4,10 +4,13 @@ import {
   signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
+  GoogleAuthProvider,
+  signInWithPopup,
 } from 'firebase/auth';
-import { doc, getDoc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { UserDoc, UserRole } from '@/types';
+import { format, addMonths } from 'date-fns';
 
 interface AuthContextValue {
   user: User | null;
@@ -15,6 +18,7 @@ interface AuthContextValue {
   role: UserRole | null;
   loading: boolean;
   login: (email: string, pass: string) => Promise<void>;
+  loginWithGoogle: (intendedRole?: UserRole) => Promise<UserRole>;
   logout: () => Promise<void>;
 }
 
@@ -54,17 +58,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (snap.exists()) {
             setUserDoc(snap.data() as UserDoc);
           } else {
-            setUserDoc({
+            const defaultDoc: UserDoc = {
               uid: firebaseUser.uid,
               email: firebaseUser.email || '',
-              displayName: firebaseUser.displayName || (resolvedRole === 'trainer' ? 'Coach Marcus' : 'Alex Mercer'),
+              displayName: firebaseUser.displayName || (resolvedRole === 'trainer' ? 'Coach' : 'Athlete'),
               role: resolvedRole,
               createdAt: new Date().toISOString(),
-            });
+              photoURL: firebaseUser.photoURL || undefined,
+            };
+            setUserDoc(defaultDoc);
+            // Ensure doc is created in Firestore
+            try {
+              await setDoc(userDocRef, defaultDoc, { merge: true });
+            } catch (err) {
+              console.warn('[FitSphere Auth] Non-critical user doc write notice:', err);
+            }
           }
         } catch (err) {
           console.error('[FitSphere Auth] Error fetching role/user doc:', err);
-          // Fallback based on email if offline/error
           const email = firebaseUser.email || '';
           const fallbackRole: UserRole = email.includes('trainer') ? 'trainer' : 'user';
           setRole(fallbackRole);
@@ -88,6 +99,82 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const loginWithGoogle = async (intendedRole: UserRole = 'user'): Promise<UserRole> => {
+    setLoading(true);
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      const credential = await signInWithPopup(auth, provider);
+      const firebaseUser = credential.user;
+
+      // Check if user doc exists
+      const userDocRef = doc(db, 'users', firebaseUser.uid);
+      const snap = await getDoc(userDocRef);
+
+      let effectiveRole = intendedRole;
+      if (snap.exists()) {
+        const data = snap.data() as UserDoc;
+        effectiveRole = data.role || intendedRole;
+      } else {
+        // Create initial user doc
+        const newUserDoc: UserDoc = {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email || '',
+          displayName: firebaseUser.displayName || (intendedRole === 'trainer' ? 'Coach' : 'Athlete'),
+          photoURL: firebaseUser.photoURL || undefined,
+          role: intendedRole,
+          createdAt: new Date().toISOString(),
+        };
+        await setDoc(userDocRef, newUserDoc, { merge: true });
+        setUserDoc(newUserDoc);
+
+        // If athlete, initialize starter profile and membership
+        if (intendedRole === 'user') {
+          const profileRef = doc(db, 'profiles', firebaseUser.uid);
+          await setDoc(
+            profileRef,
+            {
+              uid: firebaseUser.uid,
+              displayName: firebaseUser.displayName || 'Athlete',
+              email: firebaseUser.email || '',
+              age: 28,
+              heightCm: 180,
+              currentWeightKg: 78,
+              targetWeightKg: 75,
+              goals: ['Strength & Fitness', 'Consistency'],
+              fitnessLevel: 'intermediate',
+              notes: 'Welcome to FitSphere! Track your workouts and nutrition daily.',
+              waterTargetMl: 3000,
+              calorieTarget: 2400,
+              updatedAt: new Date().toISOString(),
+            },
+            { merge: true }
+          );
+
+          const membershipRef = doc(db, 'memberships', firebaseUser.uid);
+          const today = new Date();
+          await setDoc(
+            membershipRef,
+            {
+              uid: firebaseUser.uid,
+              planType: '3m',
+              startDate: format(today, 'yyyy-MM-dd'),
+              expiryDate: format(addMonths(today, 3), 'yyyy-MM-dd'),
+              updatedBy: firebaseUser.uid,
+              updatedAt: new Date().toISOString(),
+            },
+            { merge: true }
+          );
+        }
+      }
+
+      setRole(effectiveRole);
+      return effectiveRole;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const logout = async () => {
     await signOut(auth);
     setUser(null);
@@ -96,7 +183,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, userDoc, role, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, userDoc, role, loading, login, loginWithGoogle, logout }}>
       {children}
     </AuthContext.Provider>
   );

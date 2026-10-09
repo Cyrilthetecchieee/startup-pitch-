@@ -10,9 +10,9 @@ interface RequireRoleProps {
 }
 
 export const RequireRole: React.FC<RequireRoleProps> = ({ role: requiredRole, children }) => {
-  const { role, loading } = useAuth();
+  const { role, loading, user } = useAuth();
 
-  if (loading) {
+  if (loading || (user && !role)) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-dark-base text-lime-400">
         <Loader2 className="w-10 h-10 animate-spin" />
@@ -20,8 +20,12 @@ export const RequireRole: React.FC<RequireRoleProps> = ({ role: requiredRole, ch
     );
   }
 
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
   if (role !== requiredRole) {
-    // Redirect to the appropriate dashboard based on their role
+    // Redirect to the appropriate dashboard based on their verified role
     return <Navigate to={role === 'trainer' ? '/trainer' : '/user'} replace />;
   }
 

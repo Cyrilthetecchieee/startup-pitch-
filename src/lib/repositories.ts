@@ -38,13 +38,17 @@ export const subscribeMembership = (
   onUpdate: (membership: MembershipDoc | null) => void
 ) => {
   const docRef = doc(db, 'memberships', uid);
-  return onSnapshot(docRef, (snapshot) => {
-    if (snapshot.exists()) {
-      onUpdate(snapshot.data() as MembershipDoc);
-    } else {
-      onUpdate(null);
-    }
-  });
+  return onSnapshot(
+    docRef,
+    (snapshot) => {
+      if (snapshot.exists()) {
+        onUpdate(snapshot.data() as MembershipDoc);
+      } else {
+        onUpdate(null);
+      }
+    },
+    (err) => console.warn('[FitSphere] subscribeMembership notice:', err.message)
+  );
 };
 
 export const updateMembershipDoc = async (
@@ -70,13 +74,17 @@ export const subscribeUserProfile = (
   onUpdate: (profile: UserProfile | null) => void
 ) => {
   const docRef = doc(db, 'profiles', uid);
-  return onSnapshot(docRef, (snapshot) => {
-    if (snapshot.exists()) {
-      onUpdate(snapshot.data() as UserProfile);
-    } else {
-      onUpdate(null);
-    }
-  });
+  return onSnapshot(
+    docRef,
+    (snapshot) => {
+      if (snapshot.exists()) {
+        onUpdate(snapshot.data() as UserProfile);
+      } else {
+        onUpdate(null);
+      }
+    },
+    (err) => console.warn('[FitSphere] subscribeUserProfile notice:', err.message)
+  );
 };
 
 export const updateUserProfileDoc = async (
@@ -93,13 +101,17 @@ export const subscribeWorkoutPlans = (
   onUpdate: (plans: WorkoutPlan[]) => void
 ) => {
   const colRef = collection(db, 'workoutPlans');
-  return onSnapshot(colRef, (snapshot) => {
-    const plans: WorkoutPlan[] = snapshot.docs.map((d) => ({
-      id: d.id,
-      ...d.data(),
-    })) as WorkoutPlan[];
-    onUpdate(plans);
-  });
+  return onSnapshot(
+    colRef,
+    (snapshot) => {
+      const plans: WorkoutPlan[] = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      })) as WorkoutPlan[];
+      onUpdate(plans);
+    },
+    (err) => console.warn('[FitSphere] subscribeWorkoutPlans notice:', err.message)
+  );
 };
 
 export const saveWorkoutPlan = async (plan: WorkoutPlan) => {
@@ -119,13 +131,17 @@ export const subscribeAssignments = (
 ) => {
   const colRef = collection(db, 'assignments');
   const q = query(colRef, where('userId', '==', userId));
-  return onSnapshot(q, (snapshot) => {
-    const list: WorkoutAssignment[] = snapshot.docs.map((d) => ({
-      id: d.id,
-      ...d.data(),
-    })) as WorkoutAssignment[];
-    onUpdate(list.sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate)));
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const list: WorkoutAssignment[] = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      })) as WorkoutAssignment[];
+      onUpdate(list.sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate)));
+    },
+    (err) => console.warn('[FitSphere] subscribeAssignments notice:', err.message)
+  );
 };
 
 export const saveAssignment = async (assignment: WorkoutAssignment) => {
@@ -149,13 +165,17 @@ export const subscribeSessions = (
 ) => {
   const colRef = collection(db, 'sessions');
   const q = query(colRef, where('userId', '==', userId));
-  return onSnapshot(q, (snapshot) => {
-    const list: WorkoutSession[] = snapshot.docs.map((d) => ({
-      id: d.id,
-      ...d.data(),
-    })) as WorkoutSession[];
-    onUpdate(list.sort((a, b) => b.startedAt.localeCompare(a.startedAt)));
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const list: WorkoutSession[] = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      })) as WorkoutSession[];
+      onUpdate(list.sort((a, b) => b.startedAt.localeCompare(a.startedAt)));
+    },
+    (err) => console.warn('[FitSphere] subscribeSessions notice:', err.message)
+  );
 };
 
 export const saveSession = async (session: WorkoutSession) => {
@@ -171,13 +191,17 @@ export const subscribeProgress = (
 ) => {
   const colRef = collection(db, 'progress');
   const q = query(colRef, where('userId', '==', userId));
-  return onSnapshot(q, (snapshot) => {
-    const list = snapshot.docs.map((d) => ({
-      id: d.id,
-      ...d.data(),
-    })) as ProgressEntry[];
-    onUpdate(list.sort((a, b) => a.date.localeCompare(b.date)));
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const list = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      })) as ProgressEntry[];
+      onUpdate(list.sort((a, b) => a.date.localeCompare(b.date)));
+    },
+    (err) => console.warn('[FitSphere] subscribeProgress notice:', err.message)
+  );
 };
 
 export const addProgress = async (entry: ProgressEntry) => {
@@ -194,13 +218,17 @@ export const subscribeNutrition = (
 ) => {
   const colRef = collection(db, 'nutrition');
   const q = query(colRef, where('userId', '==', userId), where('date', '==', date));
-  return onSnapshot(q, (snapshot) => {
-    const list = snapshot.docs.map((d) => ({
-      id: d.id,
-      ...d.data(),
-    })) as NutritionEntry[];
-    onUpdate(list);
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const list = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      })) as NutritionEntry[];
+      onUpdate(list);
+    },
+    (err) => console.warn('[FitSphere] subscribeNutrition notice:', err.message)
+  );
 };
 
 export const addNutrition = async (entry: NutritionEntry) => {
@@ -221,13 +249,17 @@ export const subscribeHydration = (
 ) => {
   const colRef = collection(db, 'hydration');
   const q = query(colRef, where('userId', '==', userId), where('date', '==', date));
-  return onSnapshot(q, (snapshot) => {
-    const list = snapshot.docs.map((d) => ({
-      id: d.id,
-      ...d.data(),
-    })) as HydrationEntry[];
-    onUpdate(list);
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const list = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      })) as HydrationEntry[];
+      onUpdate(list);
+    },
+    (err) => console.warn('[FitSphere] subscribeHydration notice:', err.message)
+  );
 };
 
 export const addHydration = async (entry: HydrationEntry) => {
@@ -239,10 +271,14 @@ export const addHydration = async (entry: HydrationEntry) => {
 
 export const subscribeQuotes = (onUpdate: (quotes: QuoteItem[]) => void) => {
   const colRef = collection(db, 'quotes');
-  return onSnapshot(colRef, (snapshot) => {
-    const list = snapshot.docs.map((d) => ({ id: d.id, ...d.data() })) as QuoteItem[];
-    onUpdate(list);
-  });
+  return onSnapshot(
+    colRef,
+    (snapshot) => {
+      const list = snapshot.docs.map((d) => ({ id: d.id, ...d.data() })) as QuoteItem[];
+      onUpdate(list);
+    },
+    (err) => console.warn('[FitSphere] subscribeQuotes notice:', err.message)
+  );
 };
 
 export const saveQuote = async (quote: QuoteItem) => {
@@ -256,10 +292,14 @@ export const deleteQuote = async (id: string) => {
 
 export const subscribeHealthFacts = (onUpdate: (facts: HealthFactItem[]) => void) => {
   const colRef = collection(db, 'healthFacts');
-  return onSnapshot(colRef, (snapshot) => {
-    const list = snapshot.docs.map((d) => ({ id: d.id, ...d.data() })) as HealthFactItem[];
-    onUpdate(list);
-  });
+  return onSnapshot(
+    colRef,
+    (snapshot) => {
+      const list = snapshot.docs.map((d) => ({ id: d.id, ...d.data() })) as HealthFactItem[];
+      onUpdate(list);
+    },
+    (err) => console.warn('[FitSphere] subscribeHealthFacts notice:', err.message)
+  );
 };
 
 export const saveHealthFact = async (fact: HealthFactItem) => {
@@ -275,18 +315,26 @@ export const deleteHealthFact = async (id: string) => {
 
 export const subscribeArticles = (onUpdate: (articles: ArticleItem[]) => void) => {
   const colRef = collection(db, 'articles');
-  return onSnapshot(colRef, (snapshot) => {
-    const list = snapshot.docs.map((d) => ({ id: d.id, ...d.data() })) as ArticleItem[];
-    onUpdate(list);
-  });
+  return onSnapshot(
+    colRef,
+    (snapshot) => {
+      const list = snapshot.docs.map((d) => ({ id: d.id, ...d.data() })) as ArticleItem[];
+      onUpdate(list);
+    },
+    (err) => console.warn('[FitSphere] subscribeArticles notice:', err.message)
+  );
 };
 
 export const subscribeChallenges = (onUpdate: (challenges: ChallengeItem[]) => void) => {
   const colRef = collection(db, 'challenges');
-  return onSnapshot(colRef, (snapshot) => {
-    const list = snapshot.docs.map((d) => ({ id: d.id, ...d.data() })) as ChallengeItem[];
-    onUpdate(list);
-  });
+  return onSnapshot(
+    colRef,
+    (snapshot) => {
+      const list = snapshot.docs.map((d) => ({ id: d.id, ...d.data() })) as ChallengeItem[];
+      onUpdate(list);
+    },
+    (err) => console.warn('[FitSphere] subscribeChallenges notice:', err.message)
+  );
 };
 
 // ======================== FAVORITES ========================
@@ -296,10 +344,14 @@ export const subscribeFavorites = (
   onUpdate: (favorites: FavoriteItem[]) => void
 ) => {
   const colRef = collection(db, `favorites/${uid}/items`);
-  return onSnapshot(colRef, (snapshot) => {
-    const list = snapshot.docs.map((d) => ({ id: d.id, ...d.data() })) as FavoriteItem[];
-    onUpdate(list.sort((a, b) => b.savedAt.localeCompare(a.savedAt)));
-  });
+  return onSnapshot(
+    colRef,
+    (snapshot) => {
+      const list = snapshot.docs.map((d) => ({ id: d.id, ...d.data() })) as FavoriteItem[];
+      onUpdate(list.sort((a, b) => b.savedAt.localeCompare(a.savedAt)));
+    },
+    (err) => console.warn('[FitSphere] subscribeFavorites notice:', err.message)
+  );
 };
 
 export const addFavorite = async (uid: string, item: FavoriteItem) => {

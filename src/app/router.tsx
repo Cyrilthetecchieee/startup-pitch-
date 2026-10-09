@@ -1,30 +1,69 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { RequireAuth } from '@/features/auth/RequireAuth';
 import { RequireRole } from '@/features/auth/RequireRole';
 import { LoginPage } from '@/features/auth/LoginPage';
 import { useAuth } from '@/features/auth/AuthContext';
+import { Loader2 } from 'lucide-react';
 
-// Trainer Views
-import { TrainerDashboard } from '@/features/trainer/TrainerDashboard';
-import { TrainerUserManagement } from '@/features/trainer/TrainerUserManagement';
-import { TrainerAssignments } from '@/features/trainer/TrainerAssignments';
-import { TrainerMembershipPage } from '@/features/trainer/TrainerMembershipPage';
-import { TrainerProgressReview } from '@/features/trainer/TrainerProgressReview';
-import { TrainerContentManager } from '@/features/trainer/TrainerContentManager';
-import { WorkoutBuilder } from '@/features/workouts/WorkoutBuilder';
+const PageFallback: React.FC = () => (
+  <div className="flex h-64 w-full items-center justify-center text-lime-400">
+    <Loader2 className="w-8 h-8 animate-spin" />
+  </div>
+);
 
-// User Views
-import { UserDashboard } from '@/features/user/UserDashboard';
-import { UserWorkoutsPage } from '@/features/user/UserWorkoutsPage';
-import { UserPlannerPage } from '@/features/user/UserPlannerPage';
-import { UserFavoritesPage } from '@/features/user/UserFavoritesPage';
-import { UserSettingsPage } from '@/features/user/UserSettingsPage';
-import { ProgressTracker } from '@/features/progress/ProgressTracker';
-import { NutritionLogger } from '@/features/nutrition/NutritionLogger';
-import { MembershipCard } from '@/features/membership/MembershipCard';
-import { HealthHub } from '@/features/health-hub/HealthHub';
+// Lazy Loaded Trainer Views
+const TrainerDashboard = lazy(() =>
+  import('@/features/trainer/TrainerDashboard').then((m) => ({ default: m.TrainerDashboard }))
+);
+const TrainerUserManagement = lazy(() =>
+  import('@/features/trainer/TrainerUserManagement').then((m) => ({ default: m.TrainerUserManagement }))
+);
+const TrainerAssignments = lazy(() =>
+  import('@/features/trainer/TrainerAssignments').then((m) => ({ default: m.TrainerAssignments }))
+);
+const TrainerMembershipPage = lazy(() =>
+  import('@/features/trainer/TrainerMembershipPage').then((m) => ({ default: m.TrainerMembershipPage }))
+);
+const TrainerProgressReview = lazy(() =>
+  import('@/features/trainer/TrainerProgressReview').then((m) => ({ default: m.TrainerProgressReview }))
+);
+const TrainerContentManager = lazy(() =>
+  import('@/features/trainer/TrainerContentManager').then((m) => ({ default: m.TrainerContentManager }))
+);
+const WorkoutBuilder = lazy(() =>
+  import('@/features/workouts/WorkoutBuilder').then((m) => ({ default: m.WorkoutBuilder }))
+);
+
+// Lazy Loaded User Views
+const UserDashboard = lazy(() =>
+  import('@/features/user/UserDashboard').then((m) => ({ default: m.UserDashboard }))
+);
+const UserWorkoutsPage = lazy(() =>
+  import('@/features/user/UserWorkoutsPage').then((m) => ({ default: m.UserWorkoutsPage }))
+);
+const UserPlannerPage = lazy(() =>
+  import('@/features/user/UserPlannerPage').then((m) => ({ default: m.UserPlannerPage }))
+);
+const UserFavoritesPage = lazy(() =>
+  import('@/features/user/UserFavoritesPage').then((m) => ({ default: m.UserFavoritesPage }))
+);
+const UserSettingsPage = lazy(() =>
+  import('@/features/user/UserSettingsPage').then((m) => ({ default: m.UserSettingsPage }))
+);
+const ProgressTracker = lazy(() =>
+  import('@/features/progress/ProgressTracker').then((m) => ({ default: m.ProgressTracker }))
+);
+const NutritionLogger = lazy(() =>
+  import('@/features/nutrition/NutritionLogger').then((m) => ({ default: m.NutritionLogger }))
+);
+const MembershipCard = lazy(() =>
+  import('@/features/membership/MembershipCard').then((m) => ({ default: m.MembershipCard }))
+);
+const HealthHub = lazy(() =>
+  import('@/features/health-hub/HealthHub').then((m) => ({ default: m.HealthHub }))
+);
 
 import {
   subscribeWorkoutPlans,
@@ -58,7 +97,13 @@ import { SEEDED_ARTICLES, SEEDED_QUOTES, SEEDED_HEALTH_FACTS, SEEDED_CHALLENGES 
 // Role Root Redirector
 const RootRedirect: React.FC = () => {
   const { role, user, loading } = useAuth();
-  if (loading) return null;
+  if (loading || (user && !role)) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-dark-base text-lime-400">
+        <Loader2 className="w-10 h-10 animate-spin" />
+      </div>
+    );
+  }
   if (!user) return <Navigate to="/login" replace />;
   return <Navigate to={role === 'trainer' ? '/trainer' : '/user'} replace />;
 };
@@ -69,7 +114,11 @@ const TrainerWorkoutBuilderPage: React.FC = () => {
   useEffect(() => {
     return subscribeWorkoutPlans(setPlans);
   }, []);
-  return <WorkoutBuilder plans={plans} />;
+  return (
+    <Suspense fallback={<PageFallback />}>
+      <WorkoutBuilder plans={plans} />
+    </Suspense>
+  );
 };
 
 // User Nutrition Container
@@ -96,13 +145,15 @@ const UserNutritionPage: React.FC = () => {
       <h2 className="text-xl font-extrabold text-white tracking-tight">
         Daily Nutrition & Hydration Logging
       </h2>
-      <NutritionLogger
-        userId={userId}
-        nutritionEntries={nutrition}
-        hydrationEntries={hydration}
-        calorieTarget={profile?.calorieTarget || 2400}
-        waterTargetMl={profile?.waterTargetMl || 3000}
-      />
+      <Suspense fallback={<PageFallback />}>
+        <NutritionLogger
+          userId={userId}
+          nutritionEntries={nutrition}
+          hydrationEntries={hydration}
+          calorieTarget={profile?.calorieTarget || 2400}
+          waterTargetMl={profile?.waterTargetMl || 3000}
+        />
+      </Suspense>
     </div>
   );
 };
@@ -131,12 +182,14 @@ const UserProgressPage: React.FC = () => {
       <h2 className="text-xl font-extrabold text-white tracking-tight">
         Personal Metrics & Progress Trajectory
       </h2>
-      <ProgressTracker
-        userId={userId}
-        progressEntries={progress}
-        sessions={sessions}
-        targetWeightKg={profile?.targetWeightKg || 75}
-      />
+      <Suspense fallback={<PageFallback />}>
+        <ProgressTracker
+          userId={userId}
+          progressEntries={progress}
+          sessions={sessions}
+          targetWeightKg={profile?.targetWeightKg || 75}
+        />
+      </Suspense>
     </div>
   );
 };
@@ -156,7 +209,9 @@ const UserMembershipPage: React.FC = () => {
       <h2 className="text-xl font-extrabold text-white tracking-tight">
         My Subscription & Membership Status
       </h2>
-      <MembershipCard membership={membership} isTrainer={false} />
+      <Suspense fallback={<PageFallback />}>
+        <MembershipCard membership={membership} isTrainer={false} />
+      </Suspense>
     </div>
   );
 };
@@ -182,12 +237,14 @@ const UserHealthHubPage: React.FC = () => {
   }, []);
 
   return (
-    <HealthHub
-      articles={articles}
-      quotes={quotes}
-      healthFacts={healthFacts}
-      challenges={challenges}
-    />
+    <Suspense fallback={<PageFallback />}>
+      <HealthHub
+        articles={articles}
+        quotes={quotes}
+        healthFacts={healthFacts}
+        challenges={challenges}
+      />
+    </Suspense>
   );
 };
 
@@ -211,13 +268,55 @@ export const router = createBrowserRouter([
       </RequireAuth>
     ),
     children: [
-      { index: true, element: <TrainerDashboard /> },
-      { path: 'user-management', element: <TrainerUserManagement /> },
+      {
+        index: true,
+        element: (
+          <Suspense fallback={<PageFallback />}>
+            <TrainerDashboard />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'user-management',
+        element: (
+          <Suspense fallback={<PageFallback />}>
+            <TrainerUserManagement />
+          </Suspense>
+        ),
+      },
       { path: 'workouts', element: <TrainerWorkoutBuilderPage /> },
-      { path: 'assignments', element: <TrainerAssignments /> },
-      { path: 'membership', element: <TrainerMembershipPage /> },
-      { path: 'progress', element: <TrainerProgressReview /> },
-      { path: 'content', element: <TrainerContentManager /> },
+      {
+        path: 'assignments',
+        element: (
+          <Suspense fallback={<PageFallback />}>
+            <TrainerAssignments />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'membership',
+        element: (
+          <Suspense fallback={<PageFallback />}>
+            <TrainerMembershipPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'progress',
+        element: (
+          <Suspense fallback={<PageFallback />}>
+            <TrainerProgressReview />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'content',
+        element: (
+          <Suspense fallback={<PageFallback />}>
+            <TrainerContentManager />
+          </Suspense>
+        ),
+      },
     ],
   },
   // User routes
@@ -231,15 +330,50 @@ export const router = createBrowserRouter([
       </RequireAuth>
     ),
     children: [
-      { index: true, element: <UserDashboard /> },
-      { path: 'workouts', element: <UserWorkoutsPage /> },
-      { path: 'planner', element: <UserPlannerPage /> },
+      {
+        index: true,
+        element: (
+          <Suspense fallback={<PageFallback />}>
+            <UserDashboard />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'workouts',
+        element: (
+          <Suspense fallback={<PageFallback />}>
+            <UserWorkoutsPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'planner',
+        element: (
+          <Suspense fallback={<PageFallback />}>
+            <UserPlannerPage />
+          </Suspense>
+        ),
+      },
       { path: 'progress', element: <UserProgressPage /> },
       { path: 'nutrition', element: <UserNutritionPage /> },
       { path: 'membership', element: <UserMembershipPage /> },
       { path: 'health-hub', element: <UserHealthHubPage /> },
-      { path: 'favorites', element: <UserFavoritesPage /> },
-      { path: 'settings', element: <UserSettingsPage /> },
+      {
+        path: 'favorites',
+        element: (
+          <Suspense fallback={<PageFallback />}>
+            <UserFavoritesPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'settings',
+        element: (
+          <Suspense fallback={<PageFallback />}>
+            <UserSettingsPage />
+          </Suspense>
+        ),
+      },
     ],
   },
   {

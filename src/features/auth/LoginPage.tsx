@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -23,6 +23,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 export const LoginPage: React.FC = () => {
   const { user, role, login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const isSigningInRef = React.useRef(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [popupBlocked, setPopupBlocked] = useState<boolean>(false);
@@ -32,10 +33,18 @@ export const LoginPage: React.FC = () => {
   const [seedStatus, setSeedStatus] = useState<string | null>(null);
   const [selectedRole, setSelectedRole] = useState<UserRole>('user');
 
+  const getRedirectPath = (targetRole: UserRole) => {
+    const from = (location.state as any)?.from?.pathname;
+    if (from && typeof from === 'string' && from.startsWith(`/${targetRole}`)) {
+      return from;
+    }
+    return targetRole === 'trainer' ? '/trainer' : '/user';
+  };
+
   // Seamless navigation if already authenticated or returning from Google redirect
   React.useEffect(() => {
     if (user && role) {
-      navigate(role === 'trainer' ? '/trainer' : '/user', { replace: true });
+      navigate(getRedirectPath(role), { replace: true });
     }
   }, [user, role, navigate]);
 
@@ -56,12 +65,8 @@ export const LoginPage: React.FC = () => {
     setAuthError(null);
     setSubmitting(true);
     try {
-      await login(data.email, data.password);
-      if (data.email.includes('trainer')) {
-        navigate('/trainer');
-      } else {
-        navigate('/user');
-      }
+      const resolvedRole = await login(data.email, data.password);
+      navigate(getRedirectPath(resolvedRole), { replace: true });
     } catch (err: any) {
       console.error('Login error:', err);
       if (
@@ -86,12 +91,8 @@ export const LoginPage: React.FC = () => {
     setSubmitting(true);
     setAuthError(null);
     try {
-      await login(email, pass);
-      if (email.includes('trainer')) {
-        navigate('/trainer');
-      } else {
-        navigate('/user');
-      }
+      const resolvedRole = await login(email, pass);
+      navigate(getRedirectPath(resolvedRole), { replace: true });
     } catch (err: any) {
       if (
         err.code === 'auth/invalid-credential' ||
@@ -116,7 +117,7 @@ export const LoginPage: React.FC = () => {
 
     try {
       const resolvedRole = await loginWithGoogle(selectedRole, forceRedirect);
-      navigate(resolvedRole === 'trainer' ? '/trainer' : '/user', { replace: true });
+      navigate(getRedirectPath(resolvedRole), { replace: true });
     } catch (err: any) {
       console.warn('[FitSphere] Google Sign-In notice:', err);
       if (err.code === 'auth/popup-blocked') {
@@ -141,12 +142,8 @@ export const LoginPage: React.FC = () => {
       setSeedStatus('Initialized! Logging in...');
 
       if (targetEmail && targetPass) {
-        await login(targetEmail, targetPass);
-        if (targetEmail.includes('trainer')) {
-          navigate('/trainer');
-        } else {
-          navigate('/user');
-        }
+        const resolvedRole = await login(targetEmail, targetPass);
+        navigate(getRedirectPath(resolvedRole), { replace: true });
       }
     } catch (e: any) {
       console.error('Seeding error:', e);

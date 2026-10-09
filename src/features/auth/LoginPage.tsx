@@ -9,7 +9,8 @@ import { Input } from '@/components/ui/Input';
 import { SpotlightCard } from '@/components/reactbits/SpotlightCard';
 import { ShinyText } from '@/components/reactbits/ShinyText';
 import { BlurText } from '@/components/reactbits/BlurText';
-import { Dumbbell, Shield, User, ArrowRight, Sparkles, Info } from 'lucide-react';
+import { Dumbbell, Shield, User, ArrowRight, Sparkles, Info, Database, Check } from 'lucide-react';
+import { seedLiveFirebase } from '@/lib/clientSeed';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -23,6 +24,8 @@ export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const [authError, setAuthError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState<boolean>(false);
+  const [seeding, setSeeding] = useState<boolean>(false);
+  const [seedStatus, setSeedStatus] = useState<string | null>(null);
 
   const {
     register,
@@ -42,7 +45,6 @@ export const LoginPage: React.FC = () => {
     setSubmitting(true);
     try {
       await login(data.email, data.password);
-      // AuthContext will update role, navigation happens via guard or default
       if (data.email.includes('trainer')) {
         navigate('/trainer');
       } else {
@@ -50,20 +52,70 @@ export const LoginPage: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Login error:', err);
-      if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
-        setAuthError('Invalid email or password. Please verify credentials or seed the database.');
+      if (
+        err.code === 'auth/invalid-credential' ||
+        err.code === 'auth/user-not-found' ||
+        err.code === 'auth/wrong-password'
+      ) {
+        setAuthError(
+          'Account not found or password incorrect. If this is a fresh project, click "Initialize Demo Accounts" below.'
+        );
       } else {
-        setAuthError(err.message || 'Failed to authenticate. Please check emulator connection.');
+        setAuthError(err.message || 'Failed to authenticate.');
       }
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleQuickLogin = (email: string, pass: string) => {
+  const handleQuickLogin = async (email: string, pass: string) => {
     setValue('email', email);
     setValue('password', pass);
-    onSubmit({ email, password: pass });
+    setSubmitting(true);
+    setAuthError(null);
+    try {
+      await login(email, pass);
+      if (email.includes('trainer')) {
+        navigate('/trainer');
+      } else {
+        navigate('/user');
+      }
+    } catch (err: any) {
+      if (
+        err.code === 'auth/invalid-credential' ||
+        err.code === 'auth/user-not-found' ||
+        err.code === 'auth/wrong-password'
+      ) {
+        // Automatically initialize if first time
+        handleSeedLiveAndLogin(email, pass);
+      } else {
+        setAuthError(err.message || 'Login error');
+        setSubmitting(false);
+      }
+    }
+  };
+
+  const handleSeedLiveAndLogin = async (targetEmail?: string, targetPass?: string) => {
+    setSeeding(true);
+    setAuthError(null);
+    try {
+      await seedLiveFirebase((status) => setSeedStatus(status));
+      setSeedStatus('Initialized! Logging in...');
+
+      if (targetEmail && targetPass) {
+        await login(targetEmail, targetPass);
+        if (targetEmail.includes('trainer')) {
+          navigate('/trainer');
+        } else {
+          navigate('/user');
+        }
+      }
+    } catch (e: any) {
+      console.error('Seeding error:', e);
+      setAuthError(`Seed error: ${e.message}`);
+    } finally {
+      setSeeding(false);
+    }
   };
 
   return (
@@ -87,8 +139,8 @@ export const LoginPage: React.FC = () => {
               Performance Fitness Management
             </p>
             <BlurText
-              text="Elevate training, monitor recovery, and achieve peak results."
-              className="text-xs text-gray-400 justify-center"
+              text="Connected to fitsphere-e74d5 Firebase Project"
+              className="text-xs text-gray-400 justify-center font-mono"
             />
           </div>
         </div>
@@ -97,7 +149,7 @@ export const LoginPage: React.FC = () => {
         <div className="mb-6 flex items-start gap-2.5 rounded-lg border border-lime-500/20 bg-lime-500/5 p-3 text-xs text-lime-300">
           <Info className="w-4 h-4 shrink-0 text-lime-400 mt-0.5" />
           <div>
-            <span className="font-bold">Demo Application:</span> Select one of the pre-configured accounts below or log in with test credentials.
+            <span className="font-bold">Project Connected:</span> Click either account below to sign in or auto-initialize live demo data.
           </div>
         </div>
 
@@ -105,8 +157,9 @@ export const LoginPage: React.FC = () => {
         <div className="grid grid-cols-2 gap-3 mb-6">
           <button
             type="button"
+            disabled={submitting || seeding}
             onClick={() => handleQuickLogin('trainer@fitsphere.demo', 'Trainer@123')}
-            className="group flex flex-col items-start p-3.5 rounded-xl border border-dark-border bg-dark-card hover:border-lime-500/60 hover:bg-dark-elevated transition-all text-left"
+            className="group flex flex-col items-start p-3.5 rounded-xl border border-dark-border bg-dark-card hover:border-lime-500/60 hover:bg-dark-elevated transition-all text-left disabled:opacity-50"
           >
             <div className="flex items-center justify-between w-full mb-2">
               <div className="p-1.5 rounded-lg bg-lime-500/10 text-lime-400 group-hover:scale-110 transition-transform">
@@ -120,8 +173,9 @@ export const LoginPage: React.FC = () => {
 
           <button
             type="button"
+            disabled={submitting || seeding}
             onClick={() => handleQuickLogin('user@fitsphere.demo', 'User@123')}
-            className="group flex flex-col items-start p-3.5 rounded-xl border border-dark-border bg-dark-card hover:border-cyan-500/60 hover:bg-dark-elevated transition-all text-left"
+            className="group flex flex-col items-start p-3.5 rounded-xl border border-dark-border bg-dark-card hover:border-cyan-500/60 hover:bg-dark-elevated transition-all text-left disabled:opacity-50"
           >
             <div className="flex items-center justify-between w-full mb-2">
               <div className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 group-hover:scale-110 transition-transform">
@@ -139,6 +193,13 @@ export const LoginPage: React.FC = () => {
           {authError && (
             <div className="mb-4 rounded-lg border border-coral-500/30 bg-coral-500/10 p-3 text-xs text-coral-400">
               {authError}
+            </div>
+          )}
+
+          {seedStatus && (
+            <div className="mb-4 rounded-lg border border-lime-500/30 bg-lime-500/10 p-3 text-xs text-lime-400 flex items-center gap-2">
+              <Database className="w-4 h-4 animate-spin text-lime-400 shrink-0" />
+              <span>{seedStatus}</span>
             </div>
           )}
 
@@ -168,10 +229,22 @@ export const LoginPage: React.FC = () => {
             >
               Sign In to Platform
             </Button>
+
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="w-full text-xs text-gray-400"
+              isLoading={seeding}
+              onClick={() => handleSeedLiveAndLogin()}
+              leftIcon={<Database className="w-3.5 h-3.5 text-lime-400" />}
+            >
+              Initialize Demo Accounts & Seed Data
+            </Button>
           </form>
 
-          <div className="mt-4 pt-4 border-t border-dark-border text-center text-xs text-gray-500">
-            Local Firebase Emulator Suite (Auth: 9099 | Firestore: 8080)
+          <div className="mt-4 pt-4 border-t border-dark-border text-center text-xs text-gray-500 font-mono">
+            Firebase: fitsphere-e74d5
           </div>
         </SpotlightCard>
       </div>

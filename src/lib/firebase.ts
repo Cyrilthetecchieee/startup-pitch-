@@ -1,26 +1,40 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { getAnalytics, isSupported, Analytics } from 'firebase/analytics';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'demo-fitsphere-api-key',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'demo-fitsphere.firebaseapp.com',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'demo-fitsphere',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'demo-fitsphere.appspot.com',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '123456789012',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:123456789012:web:abcdef1234567890',
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyAhjcitmu_ol31SZJsvyfC2X_BDWEfl2wE',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'fitsphere-e74d5.firebaseapp.com',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'fitsphere-e74d5',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'fitsphere-e74d5.firebasestorage.app',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '852373956334',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:852373956334:web:896c492cc19cd9386175ff',
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || 'G-G4PLWXW06J',
 };
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Connect to emulators if flag is set (default true for local development)
-const useEmulator = import.meta.env.VITE_USE_FIREBASE_EMULATOR !== 'false';
+let analytics: Analytics | null = null;
+if (typeof window !== 'undefined') {
+  isSupported()
+    .then((supported) => {
+      if (supported && firebaseConfig.measurementId) {
+        analytics = getAnalytics(app);
+      }
+    })
+    .catch(() => {
+      // analytics not supported in this environment
+    });
+}
+
+// Connect to emulators only if explicit flag is true
+const useEmulator = import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true';
 const authPort = Number(import.meta.env.VITE_EMULATOR_AUTH_PORT) || 9099;
 const firestorePort = Number(import.meta.env.VITE_EMULATOR_FIRESTORE_PORT) || 8080;
 
-// Emulator connection state tracking to avoid duplicate connect calls
 let emulatorsConnected = false;
 
 export function initEmulators() {
@@ -36,9 +50,10 @@ export function initEmulators() {
   }
 }
 
-// Auto-run emulator connection in dev mode
 if (useEmulator) {
   initEmulators();
+} else {
+  console.log(`[FitSphere Firebase] Connected to Live Project: ${firebaseConfig.projectId}`);
 }
 
-export { app, auth, db };
+export { app, auth, db, analytics };

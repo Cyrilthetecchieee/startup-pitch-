@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/Input';
 import { SpotlightCard } from '@/components/reactbits/SpotlightCard';
 import { ShinyText } from '@/components/reactbits/ShinyText';
 import { BlurText } from '@/components/reactbits/BlurText';
-import { Dumbbell, Shield, User, ArrowRight, Sparkles, Info, Database, Check } from 'lucide-react';
+import { Dumbbell, Shield, User, ArrowRight, Sparkles, Info, Database } from 'lucide-react';
 import { seedLiveFirebase } from '@/lib/clientSeed';
 import { UserRole } from '@/types';
 
@@ -28,7 +28,7 @@ export const LoginPage: React.FC = () => {
   const [googleLoading, setGoogleLoading] = useState<boolean>(false);
   const [seeding, setSeeding] = useState<boolean>(false);
   const [seedStatus, setSeedStatus] = useState<string | null>(null);
-  const [googleRoleModal, setGoogleRoleModal] = useState<boolean>(false);
+  const [selectedRole, setSelectedRole] = useState<UserRole>('user');
 
   const {
     register,
@@ -97,11 +97,12 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  const handleGoogleLogin = async (role: UserRole = 'user') => {
+  // Immediate click handler - prevents browser popup-blocker
+  const handleGoogleLogin = async (forceRedirect = false) => {
     setGoogleLoading(true);
     setAuthError(null);
     try {
-      const resolvedRole = await loginWithGoogle(role);
+      const resolvedRole = await loginWithGoogle(selectedRole, forceRedirect);
       navigate(resolvedRole === 'trainer' ? '/trainer' : '/user');
     } catch (err: any) {
       console.error('Google Sign-In error:', err);
@@ -110,7 +111,6 @@ export const LoginPage: React.FC = () => {
       }
     } finally {
       setGoogleLoading(false);
-      setGoogleRoleModal(false);
     }
   };
 
@@ -131,7 +131,7 @@ export const LoginPage: React.FC = () => {
       }
     } catch (e: any) {
       console.error('Seeding error:', e);
-      setAuthError(`Seed error: ${e.message}`);
+      setAuthError(`Seed notice: ${e.message}`);
     } finally {
       setSeeding(false);
     }
@@ -168,17 +168,50 @@ export const LoginPage: React.FC = () => {
         <div className="mb-6 flex items-start gap-2.5 rounded-lg border border-lime-500/20 bg-lime-500/5 p-3 text-xs text-lime-300">
           <Info className="w-4 h-4 shrink-0 text-lime-400 mt-0.5" />
           <div>
-            <span className="font-bold">Authentication Ready:</span> Sign in with your Google account or use the pre-configured demo credentials below.
+            <span className="font-bold">Authentication Ready:</span> Sign in with Google or select a demo account below.
           </div>
         </div>
 
-        {/* Google Sign-In Main Button */}
-        <div className="mb-6">
+        {/* Google Sign-In with Pre-Selected Role (Direct Click - No Popup Blocker) */}
+        <div className="p-4 rounded-xl border border-dark-border bg-dark-card mb-6 space-y-3">
+          <div className="flex items-center justify-between text-xs text-gray-400 mb-1">
+            <span className="font-semibold uppercase tracking-wider text-[11px]">Sign in with Google as:</span>
+            <span className="text-lime-400 font-bold capitalize">{selectedRole}</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedRole('user')}
+              className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 border ${
+                selectedRole === 'user'
+                  ? 'border-cyan-500 bg-cyan-500/15 text-cyan-300 shadow-sm'
+                  : 'border-dark-border bg-dark-base text-gray-400 hover:text-white'
+              }`}
+            >
+              <User className="w-3.5 h-3.5" />
+              <span>Athlete (User)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSelectedRole('trainer')}
+              className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 border ${
+                selectedRole === 'trainer'
+                  ? 'border-lime-500 bg-lime-500/15 text-lime-300 shadow-sm'
+                  : 'border-dark-border bg-dark-base text-gray-400 hover:text-white'
+              }`}
+            >
+              <Shield className="w-3.5 h-3.5" />
+              <span>Trainer (Coach)</span>
+            </button>
+          </div>
+
           <button
             type="button"
             disabled={googleLoading || submitting}
-            onClick={() => setGoogleRoleModal(true)}
-            className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-dark-border bg-dark-card hover:bg-dark-elevated hover:border-gray-500 text-white font-semibold text-sm transition-all shadow-sm active:scale-[0.98] disabled:opacity-50"
+            onClick={() => handleGoogleLogin(false)}
+            className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-dark-border bg-dark-base hover:bg-dark-elevated hover:border-gray-500 text-white font-semibold text-sm transition-all shadow-sm active:scale-[0.98] disabled:opacity-50"
           >
             {/* Authentic Google 'G' icon */}
             <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
@@ -199,8 +232,19 @@ export const LoginPage: React.FC = () => {
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
               />
             </svg>
-            <span>{googleLoading ? 'Signing in with Google...' : 'Continue with Google'}</span>
+            <span>{googleLoading ? 'Signing in with Google...' : `Sign in with Google (${selectedRole})`}</span>
           </button>
+
+          <div className="text-center">
+            <button
+              type="button"
+              disabled={googleLoading}
+              onClick={() => handleGoogleLogin(true)}
+              className="text-[11px] text-gray-500 hover:text-lime-400 hover:underline transition-colors"
+            >
+              Popup blocked? Click here to use Google Full-Page Redirect
+            </button>
+          </div>
         </div>
 
         {/* Quick Demo Login Cards */}
@@ -298,66 +342,6 @@ export const LoginPage: React.FC = () => {
           </div>
         </SpotlightCard>
       </div>
-
-      {/* Google Role Choice Modal */}
-      {googleRoleModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="relative w-full max-w-sm rounded-2xl bg-dark-card border border-dark-border p-6 shadow-card-dark z-10 animate-slide-up">
-            <h3 className="text-base font-bold text-white mb-2 text-center">
-              Select Your Role for Google Sign-In
-            </h3>
-            <p className="text-xs text-gray-400 text-center mb-6">
-              Choose whether you are signing in as a Trainer or as an Athlete.
-            </p>
-
-            <div className="space-y-3">
-              <button
-                type="button"
-                onClick={() => handleGoogleLogin('trainer')}
-                className="w-full p-4 rounded-xl border border-lime-500/40 bg-lime-500/10 hover:bg-lime-500/20 text-left transition-all group"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <Shield className="w-5 h-5 text-lime-400" />
-                    <div>
-                      <div className="text-sm font-bold text-white">Trainer (Head Coach)</div>
-                      <div className="text-xs text-lime-300">Workout builder, scheduling & management</div>
-                    </div>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-lime-400 group-hover:translate-x-1 transition-transform" />
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleGoogleLogin('user')}
-                className="w-full p-4 rounded-xl border border-cyan-500/40 bg-cyan-500/10 hover:bg-cyan-500/20 text-left transition-all group"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <User className="w-5 h-5 text-cyan-400" />
-                    <div>
-                      <div className="text-sm font-bold text-white">Athlete (User)</div>
-                      <div className="text-xs text-cyan-300">Workout tracking, nutrition & boost</div>
-                    </div>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-cyan-400 group-hover:translate-x-1 transition-transform" />
-                </div>
-              </button>
-            </div>
-
-            <div className="mt-4 pt-3 border-t border-dark-border text-center">
-              <button
-                type="button"
-                onClick={() => setGoogleRoleModal(false)}
-                className="text-xs text-gray-400 hover:text-white"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

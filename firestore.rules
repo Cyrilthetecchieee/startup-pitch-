@@ -1,0 +1,138 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isTrainer() {
+      return isSignedIn() && request.auth.token.role == 'trainer';
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // Default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Users collection
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isTrainer();
+      allow create: if isTrainer() || isOwner(uid);
+      allow update: if isTrainer() || (isOwner(uid) && (!('role' in request.resource.data) || request.resource.data.role == resource.data.role));
+      allow delete: if isTrainer();
+    }
+
+    // Profiles collection
+    match /profiles/{uid} {
+      allow read: if isOwner(uid) || isTrainer();
+      allow write: if isOwner(uid) || isTrainer();
+    }
+
+    // Memberships collection: ONLY Trainer can write, User can read own
+    match /memberships/{uid} {
+      allow read: if isOwner(uid) || isTrainer();
+      allow write: if isTrainer();
+    }
+
+    // Workout Plans: Trainer full access, signed-in users can read
+    match /workoutPlans/{planId} {
+      allow read: if isSignedIn();
+      allow write: if isTrainer();
+    }
+
+    // Exercise Library: Trainer full access, signed-in users can read
+    match /exerciseLibrary/{exerciseId} {
+      allow read: if isSignedIn();
+      allow write: if isTrainer();
+    }
+
+    // Assignments: Trainer creates/updates, user reads own
+    match /assignments/{assignmentId} {
+      allow read: if isTrainer() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow write: if isTrainer();
+    }
+
+    // Sessions: User logs their own session, Trainer can read/review
+    match /sessions/{sessionId} {
+      allow read: if isTrainer() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isSignedIn() && (request.resource.data.userId == request.auth.uid || isTrainer());
+      allow update: if isTrainer() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow delete: if isTrainer() || (isSignedIn() && resource.data.userId == request.auth.uid);
+
+      match /sets/{setId} {
+        allow read: if isSignedIn();
+        allow write: if isSignedIn();
+      }
+    }
+
+    // Progress metrics (weight, body fat): User logs own, Trainer can read
+    match /progress/{entryId} {
+      allow read: if isTrainer() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isTrainer() || (isSignedIn() && resource.data.userId == request.auth.uid);
+    }
+
+    // Nutrition logs: User logs own, Trainer can read
+    match /nutrition/{entryId} {
+      allow read: if isTrainer() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isTrainer() || (isSignedIn() && resource.data.userId == request.auth.uid);
+    }
+
+    // Hydration logs: User logs own, Trainer can read
+    match /hydration/{entryId} {
+      allow read: if isTrainer() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isTrainer() || (isSignedIn() && resource.data.userId == request.auth.uid);
+    }
+
+    // Recipes: Trainer writes, users read
+    match /recipes/{recipeId} {
+      allow read: if isSignedIn();
+      allow write: if isTrainer();
+    }
+
+    // Quotes: Trainer manages, users read
+    match /quotes/{quoteId} {
+      allow read: if isSignedIn();
+      allow write: if isTrainer();
+    }
+
+    // Health Facts: Trainer manages, users read
+    match /healthFacts/{factId} {
+      allow read: if isSignedIn();
+      allow write: if isTrainer();
+    }
+
+    // Articles: Trainer manages, users read
+    match /articles/{articleId} {
+      allow read: if isSignedIn();
+      allow write: if isTrainer();
+    }
+
+    // Challenges: Trainer manages, users read
+    match /challenges/{challengeId} {
+      allow read: if isSignedIn();
+      allow write: if isTrainer();
+    }
+
+    // Subcollections under users/uids for favorites, achievements, notifications
+    match /favorites/{uid}/items/{itemId} {
+      allow read, write: if isOwner(uid) || isTrainer();
+    }
+
+    match /achievements/{uid}/items/{itemId} {
+      allow read: if isOwner(uid) || isTrainer();
+      allow write: if isOwner(uid) || isTrainer();
+    }
+
+    match /notifications/{uid}/items/{itemId} {
+      allow read, write: if isOwner(uid) || isTrainer();
+    }
+  }
+}

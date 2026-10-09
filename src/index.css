@@ -1,0 +1,76 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-base: #0B0D0F;
+  --bg-card: #121518;
+  --bg-elevated: #181C22;
+  --accent-lime: #CCFF00;
+  --accent-glow: rgba(204, 255, 0, 0.15);
+  --border-subtle: #2A313D;
+  --text-muted: #8E9AA8;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-base);
+  color: #F3F4F6;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom Sleek Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0B0D0F;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2A313D;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #CCFF00;
+}
+
+/* Glassmorphism & Card Glows */
+.glass-panel {
+  background: rgba(18, 21, 24, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-panel-lime {
+  background: rgba(18, 21, 24, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(204, 255, 0, 0.25);
+  box-shadow: 0 0 25px -5px rgba(204, 255, 0, 0.15);
+}
+
+.lime-glow-hover {
+  transition: all 0.25s ease-in-out;
+}
+
+.lime-glow-hover:hover {
+  border-color: rgba(204, 255, 0, 0.5);
+  box-shadow: 0 0 20px -3px rgba(204, 255, 0, 0.25);
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

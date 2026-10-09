@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -163,21 +163,23 @@ export const LoginPage: React.FC = () => {
       <div className="relative z-10 w-full max-w-md">
         {/* Brand Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-dark-card border border-lime-500/30 shadow-lime-sm mb-4">
-            <Dumbbell className="w-7 h-7 text-lime-400" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-white mb-1">
-              <ShinyText text="FitSphere" speed={3} className="text-3xl font-extrabold tracking-tight" />
-            </h1>
-            <p className="text-xs uppercase tracking-widest text-lime-400 font-semibold mb-2">
-              Performance Fitness Management
-            </p>
-            <BlurText
-              text="Google Auth & Live Firebase Connected"
-              className="text-xs text-gray-400 justify-center font-mono"
-            />
-          </div>
+          <Link to="/" className="inline-flex flex-col items-center group">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-dark-card border border-lime-500/30 shadow-lime-sm mb-4 group-hover:border-lime-400 group-hover:scale-105 transition-all">
+              <Dumbbell className="w-7 h-7 text-lime-400" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-extrabold tracking-tight text-white mb-1">
+                <ShinyText text="FitSphere" speed={3} className="text-3xl font-extrabold tracking-tight" />
+              </h1>
+              <p className="text-xs uppercase tracking-widest text-lime-400 font-semibold mb-2">
+                Performance Fitness Management
+              </p>
+              <BlurText
+                text="Google Auth & Live Firebase Connected"
+                className="text-xs text-gray-400 justify-center font-mono"
+              />
+            </div>
+          </Link>
         </div>
 
         {/* Demo Notice Banner */}
@@ -369,7 +371,7 @@ export const LoginPage: React.FC = () => {
           </form>
 
           <div className="mt-4 pt-4 border-t border-dark-border text-center text-xs text-gray-500 font-mono">
-            Firebase: fitsphere-e74d5
+            Firebase: fitsphere1-b71c9
           </div>
         </SpotlightCard>
       </div>

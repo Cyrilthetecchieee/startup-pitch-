@@ -94,7 +94,9 @@ import {
 import { getTodayDateString } from '@/lib/dates';
 import { SEEDED_ARTICLES, SEEDED_QUOTES, SEEDED_HEALTH_FACTS, SEEDED_CHALLENGES } from '@/features/health-hub/contentData';
 
-// Role Root Redirector
+import { HomePage } from '@/features/home/HomePage';
+
+// Role Root Redirector (used when navigating to /app or protected redirect)
 const RootRedirect: React.FC = () => {
   const { role, user, loading } = useAuth();
   if (loading || (user && !role)) {
@@ -255,6 +257,14 @@ export const router = createBrowserRouter([
   },
   {
     path: '/',
+    element: <HomePage />,
+  },
+  {
+    path: '/home',
+    element: <HomePage />,
+  },
+  {
+    path: '/app',
     element: <RootRedirect />,
   },
   // Trainer routes

@@ -36,3 +36,5 @@ emulator-data/
 # Downloads / archives
 jdk17.zip
 jdk-17*
+
+.vercel

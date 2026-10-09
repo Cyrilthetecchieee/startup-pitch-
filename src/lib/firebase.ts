@@ -4,13 +4,13 @@ import { initializeFirestore, getFirestore, connectFirestoreEmulator } from 'fir
 import { getAnalytics, isSupported, Analytics } from 'firebase/analytics';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyAhjcitmu_ol31SZJsvyfC2X_BDWEfl2wE',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'fitsphere-e74d5.firebaseapp.com',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'fitsphere-e74d5',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'fitsphere-e74d5.firebasestorage.app',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '852373956334',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:852373956334:web:896c492cc19cd9386175ff',
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || 'G-G4PLWXW06J',
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyAEoJgoRluVQGg6zuq_lbNoCbAwXm_bBLE',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'fitsphere1-b71c9.firebaseapp.com',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'fitsphere1-b71c9',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'fitsphere1-b71c9.firebasestorage.app',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '162019043986',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:162019043986:web:e33dc7c1038c14c5fdd44b',
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || 'G-BHQP1L3N2P',
 };
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);

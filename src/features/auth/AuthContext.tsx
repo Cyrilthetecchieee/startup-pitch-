@@ -26,6 +26,14 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+async function withTimeout<T>(promise: Promise<T>, ms = 2500): Promise<T> {
+  let timer: any;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error('Operation timeout')), ms);
+  });
+  return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timer));
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [userDoc, setUserDoc] = useState<UserDoc | null>(null);
@@ -49,69 +57,80 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const syncGoogleUser = async (firebaseUser: User, intendedRole: UserRole): Promise<UserRole> => {
     let effectiveRole = intendedRole;
+
+    // Immediately create local representation so UI renders with zero lag
+    const defaultDoc: UserDoc = {
+      uid: firebaseUser.uid,
+      email: firebaseUser.email || '',
+      displayName: firebaseUser.displayName || (intendedRole === 'trainer' ? 'Coach' : 'Athlete'),
+      photoURL: firebaseUser.photoURL || undefined,
+      role: intendedRole,
+      createdAt: new Date().toISOString(),
+    };
+    setUserDoc(defaultDoc);
+    setRole(intendedRole);
+
+    // Non-blocking firestore sync with timeout
     try {
       const userDocRef = doc(db, 'users', firebaseUser.uid);
-      const snap = await getDoc(userDocRef);
+      const snap = await withTimeout(getDoc(userDocRef), 2000);
 
       if (snap.exists()) {
         const data = snap.data() as UserDoc;
         effectiveRole = data.role || intendedRole;
         setUserDoc(data);
+        setRole(effectiveRole);
       } else {
-        const newUserDoc: UserDoc = {
-          uid: firebaseUser.uid,
-          email: firebaseUser.email || '',
-          displayName: firebaseUser.displayName || (intendedRole === 'trainer' ? 'Coach' : 'Athlete'),
-          photoURL: firebaseUser.photoURL || undefined,
-          role: intendedRole,
-          createdAt: new Date().toISOString(),
-        };
-        await setDoc(userDocRef, newUserDoc, { merge: true });
-        setUserDoc(newUserDoc);
+        await withTimeout(setDoc(userDocRef, defaultDoc, { merge: true }), 2000);
 
         if (intendedRole === 'user') {
           const profileRef = doc(db, 'profiles', firebaseUser.uid);
-          await setDoc(
-            profileRef,
-            {
-              uid: firebaseUser.uid,
-              displayName: firebaseUser.displayName || 'Athlete',
-              email: firebaseUser.email || '',
-              age: 28,
-              heightCm: 180,
-              currentWeightKg: 78,
-              targetWeightKg: 75,
-              goals: ['Strength & Fitness', 'Consistency'],
-              fitnessLevel: 'intermediate',
-              notes: 'Welcome to FitSphere! Track your workouts and nutrition daily.',
-              waterTargetMl: 3000,
-              calorieTarget: 2400,
-              updatedAt: new Date().toISOString(),
-            },
-            { merge: true }
+          await withTimeout(
+            setDoc(
+              profileRef,
+              {
+                uid: firebaseUser.uid,
+                displayName: firebaseUser.displayName || 'Athlete',
+                email: firebaseUser.email || '',
+                age: 28,
+                heightCm: 180,
+                currentWeightKg: 78,
+                targetWeightKg: 75,
+                goals: ['Strength & Fitness', 'Consistency'],
+                fitnessLevel: 'intermediate',
+                notes: 'Welcome to FitSphere! Track your workouts and nutrition daily.',
+                waterTargetMl: 3000,
+                calorieTarget: 2400,
+                updatedAt: new Date().toISOString(),
+              },
+              { merge: true }
+            ),
+            2000
           );
 
           const membershipRef = doc(db, 'memberships', firebaseUser.uid);
           const today = new Date();
-          await setDoc(
-            membershipRef,
-            {
-              uid: firebaseUser.uid,
-              planType: '3m',
-              startDate: format(today, 'yyyy-MM-dd'),
-              expiryDate: format(addMonths(today, 3), 'yyyy-MM-dd'),
-              updatedBy: firebaseUser.uid,
-              updatedAt: new Date().toISOString(),
-            },
-            { merge: true }
+          await withTimeout(
+            setDoc(
+              membershipRef,
+              {
+                uid: firebaseUser.uid,
+                planType: '3m',
+                startDate: format(today, 'yyyy-MM-dd'),
+                expiryDate: format(addMonths(today, 3), 'yyyy-MM-dd'),
+                updatedBy: firebaseUser.uid,
+                updatedAt: new Date().toISOString(),
+              },
+              { merge: true }
+            ),
+            2000
           );
         }
       }
     } catch (err) {
-      console.warn('[FitSphere Auth] Firestore sync skipped or offline:', err);
+      console.warn('[FitSphere Auth] Firestore sync timed out or offline, continuing with local state:', err);
     }
 
-    setRole(effectiveRole);
     return effectiveRole;
   };
 
@@ -120,49 +139,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(firebaseUser);
       if (firebaseUser) {
         try {
-          const tokenResult = await firebaseUser.getIdTokenResult(true);
-          const claimRole = tokenResult.claims.role as UserRole | undefined;
+          const tokenResult = await withTimeout(firebaseUser.getIdTokenResult(), 2000).catch(() => null);
+          const claimRole = tokenResult?.claims?.role as UserRole | undefined;
+          const storedIntended = (localStorage.getItem('fitsphere_intended_role') as UserRole) || null;
 
           let resolvedRole: UserRole = 'user';
           if (claimRole === 'trainer' || claimRole === 'user') {
             resolvedRole = claimRole;
+          } else if (storedIntended === 'trainer' || storedIntended === 'user') {
+            resolvedRole = storedIntended;
           } else if (firebaseUser.email?.includes('trainer')) {
             resolvedRole = 'trainer';
           }
 
-          // Try fetching user doc
+          // Set immediate role and doc so UI unblocks instantly
+          const fallbackDoc: UserDoc = {
+            uid: firebaseUser.uid,
+            email: firebaseUser.email || '',
+            displayName: firebaseUser.displayName || (resolvedRole === 'trainer' ? 'Coach Marcus' : 'Alex Mercer'),
+            role: resolvedRole,
+            createdAt: new Date().toISOString(),
+            photoURL: firebaseUser.photoURL || undefined,
+          };
+          setUserDoc(fallbackDoc);
+          setRole(resolvedRole);
+
+          // Asynchronously try fetching or ensuring Firestore doc
           try {
             const userDocRef = doc(db, 'users', firebaseUser.uid);
-            const snap = await getDoc(userDocRef);
+            const snap = await withTimeout(getDoc(userDocRef), 2000);
             if (snap.exists()) {
               const data = snap.data() as UserDoc;
               resolvedRole = data.role || resolvedRole;
               setUserDoc(data);
+              setRole(resolvedRole);
             } else {
-              setUserDoc({
-                uid: firebaseUser.uid,
-                email: firebaseUser.email || '',
-                displayName: firebaseUser.displayName || (resolvedRole === 'trainer' ? 'Coach Marcus' : 'Alex Mercer'),
-                role: resolvedRole,
-                createdAt: new Date().toISOString(),
-                photoURL: firebaseUser.photoURL || undefined,
-              });
+              await withTimeout(setDoc(userDocRef, fallbackDoc, { merge: true }), 2000);
             }
           } catch {
-            // Firestore not ready or offline - fallback to resolvedRole
-            setUserDoc({
-              uid: firebaseUser.uid,
-              email: firebaseUser.email || '',
-              displayName: firebaseUser.displayName || (resolvedRole === 'trainer' ? 'Coach Marcus' : 'Alex Mercer'),
-              role: resolvedRole,
-              createdAt: new Date().toISOString(),
-              photoURL: firebaseUser.photoURL || undefined,
-            });
+            // Firestore offline or not yet initialized
           }
-
-          setRole(resolvedRole);
         } catch (err) {
-          console.error('[FitSphere Auth] Error fetching role/user doc:', err);
+          console.error('[FitSphere Auth] Error in auth state:', err);
           const email = firebaseUser.email || '';
           const fallbackRole: UserRole = email.includes('trainer') ? 'trainer' : 'user';
           setRole(fallbackRole);
@@ -191,25 +209,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
+      localStorage.setItem('fitsphere_intended_role', intendedRole);
 
       if (forceRedirect) {
-        localStorage.setItem('fitsphere_intended_role', intendedRole);
         await signInWithRedirect(auth, provider);
         return intendedRole;
       }
 
-      try {
-        const credential = await signInWithPopup(auth, provider);
-        return await syncGoogleUser(credential.user, intendedRole);
-      } catch (popupErr: any) {
-        if (popupErr.code === 'auth/popup-blocked' || popupErr.code === 'auth/cancelled-popup-request') {
-          console.warn('[FitSphere Auth] Popup blocked by browser. Falling back to redirect...');
-          localStorage.setItem('fitsphere_intended_role', intendedRole);
-          await signInWithRedirect(auth, provider);
-          return intendedRole;
-        }
-        throw popupErr;
-      }
+      const credential = await signInWithPopup(auth, provider);
+      const resolvedRole = await syncGoogleUser(credential.user, intendedRole);
+      return resolvedRole;
     } finally {
       setLoading(false);
     }

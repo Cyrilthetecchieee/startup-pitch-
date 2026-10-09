@@ -21,14 +21,23 @@ const loginSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>;
 
 export const LoginPage: React.FC = () => {
-  const { login, loginWithGoogle } = useAuth();
+  const { user, role, login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
+  const isSigningInRef = React.useRef(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [popupBlocked, setPopupBlocked] = useState<boolean>(false);
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [googleLoading, setGoogleLoading] = useState<boolean>(false);
   const [seeding, setSeeding] = useState<boolean>(false);
   const [seedStatus, setSeedStatus] = useState<string | null>(null);
   const [selectedRole, setSelectedRole] = useState<UserRole>('user');
+
+  // Seamless navigation if already authenticated or returning from Google redirect
+  React.useEffect(() => {
+    if (user && role) {
+      navigate(role === 'trainer' ? '/trainer' : '/user', { replace: true });
+    }
+  }, [user, role, navigate]);
 
   const {
     register,
@@ -97,20 +106,30 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  // Immediate click handler - prevents browser popup-blocker
+  // Immediate click handler - prevents duplicate requests and handles popups vs redirects
   const handleGoogleLogin = async (forceRedirect = false) => {
+    if (isSigningInRef.current) return;
+    isSigningInRef.current = true;
     setGoogleLoading(true);
     setAuthError(null);
+    setPopupBlocked(false);
+
     try {
       const resolvedRole = await loginWithGoogle(selectedRole, forceRedirect);
-      navigate(resolvedRole === 'trainer' ? '/trainer' : '/user');
+      navigate(resolvedRole === 'trainer' ? '/trainer' : '/user', { replace: true });
     } catch (err: any) {
-      console.error('Google Sign-In error:', err);
-      if (err.code !== 'auth/popup-closed-by-user') {
+      console.warn('[FitSphere] Google Sign-In notice:', err);
+      if (err.code === 'auth/popup-blocked') {
+        setPopupBlocked(true);
+        setAuthError('Browser blocked popup window. Click "Continue with Full-Page Redirect" below.');
+      } else if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
+        // Silently clear loading state if user closed the window
+      } else {
         setAuthError(err.message || 'Google authentication failed.');
       }
     } finally {
       setGoogleLoading(false);
+      isSigningInRef.current = false;
     }
   };
 
@@ -235,14 +254,29 @@ export const LoginPage: React.FC = () => {
             <span>{googleLoading ? 'Signing in with Google...' : `Sign in with Google (${selectedRole})`}</span>
           </button>
 
-          <div className="text-center">
+          {popupBlocked && (
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs flex flex-col gap-2">
+              <p className="font-medium">Browser popup was blocked by browser permissions.</p>
+              <button
+                type="button"
+                onClick={() => handleGoogleLogin(true)}
+                className="w-full py-2 px-3 rounded-lg bg-amber-400 hover:bg-amber-300 text-black font-bold text-xs transition-colors flex items-center justify-center gap-1.5"
+              >
+                <span>Continue with Full-Page Redirect</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
+          <div className="flex items-center justify-center gap-2 text-center pt-1">
+            <span className="text-[11px] text-gray-500">Popups blocked?</span>
             <button
               type="button"
               disabled={googleLoading}
               onClick={() => handleGoogleLogin(true)}
-              className="text-[11px] text-gray-500 hover:text-lime-400 hover:underline transition-colors"
+              className="text-[11px] font-semibold text-lime-400 hover:text-lime-300 hover:underline transition-colors"
             >
-              Popup blocked? Click here to use Google Full-Page Redirect
+              Sign in with Page Redirect
             </button>
           </div>
         </div>
